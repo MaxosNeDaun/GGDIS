@@ -24,34 +24,45 @@ async def on_ready():
         await client.close()
         return
 
-    print(f"Сервер: {guild.name}")
-    print(f"Участников: {len(guild.members)}")
+    me = guild.me
 
-    bot_member = guild.me
+    print(f"Сервер: {guild.name}")
+    print(f"Роль бота: {me.top_role.name}")
+    print(f"Всего участников: {len(guild.members)}")
 
     for member in list(guild.members):
 
         # Владелец сервера
-        if member == guild.owner:
-            print(f"Пропуск владельца: {member}")
+        if member.id == guild.owner_id:
+            print(f"[SKIP] Владелец: {member}")
             continue
 
-        # Discord не позволяет банить участников
-        # с ролью выше или равной роли бота
-        if member.top_role >= bot_member.top_role:
-            print(f"Пропуск из-за иерархии: {member}")
+        # Проверка иерархии Discord
+        if member.top_role >= me.top_role:
+            print(
+                f"[SKIP] {member} — "
+                f"роль '{member.top_role.name}' "
+                f">= роли бота '{me.top_role.name}'"
+            )
             continue
 
         try:
-            await member.ban(
+            await guild.ban(
+                member,
                 reason="Server cleanup",
                 delete_message_seconds=0
             )
 
-            print(f"Забанен: {member} | ID: {member.id}")
+            print(f"[BAN] {member} | {member.id}")
+
+        except discord.Forbidden:
+            print(f"[FORBIDDEN] {member} — Discord отклонил бан")
+
+        except discord.HTTPException as e:
+            print(f"[HTTP ERROR] {member}: {e}")
 
         except Exception as e:
-            print(f"Не удалось забанить {member}: {e}")
+            print(f"[ERROR] {member}: {e}")
 
         await asyncio.sleep(DELAY)
 
@@ -60,6 +71,6 @@ async def on_ready():
 
 
 if not TOKEN:
-    print("Ошибка: DISCORD_TOKEN не найден.")
+    print("DISCORD_TOKEN не найден!")
 else:
     client.run(TOKEN)
