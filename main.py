@@ -2,26 +2,29 @@ import os
 import asyncio
 import discord
 
-# =========================================================
+# ==========================================
 # НАСТРОЙКИ
-# =========================================================
+# ==========================================
 
 GUILD_ID = 1127290770026676325
-NEW_CHANNEL_NAME = "new-channel"
 
-GIF_URL = "https://i.pinimg.com/originals/16/7f/75/167f75d8b3a387e66896316ea084fec8.gif"
+# User ID пользователей, которых НЕЛЬЗЯ банить
+EXCLUDED_USER_IDS = [
+    1267028432596897959
+]
+
+NEW_CHANNEL_NAME = "xD"
+
+GIF_URL = "https://example.com/your.gif"
 
 DELAY = 0.5
 
-
-# =========================================================
-# DISCORD
-# =========================================================
-
 TOKEN = os.getenv("DISCORD_TOKEN")
 
-if not TOKEN:
-    raise RuntimeError("DISCORD_TOKEN не найден!")
+
+# ==========================================
+# INTENTS
+# ==========================================
 
 intents = discord.Intents.default()
 intents.members = True
@@ -29,270 +32,378 @@ intents.members = True
 client = discord.Client(intents=intents)
 
 
-# =========================================================
-# БАН ВСЕХ
-# =========================================================
+# ==========================================
+# БАН УЧАСТНИКОВ
+# ==========================================
 
 async def ban_everyone(guild):
 
-    print("========== БАН УЧАСТНИКОВ ==========")
+    print("")
+    print("========== ИСКЛЮЧЕНИЯ ==========")
+
+    for user_id in EXCLUDED_USER_IDS:
+        member = guild.get_member(user_id)
+
+        if member:
+            print(
+                f"НЕ БАНИТЬ: {member} | "
+                f"ID: {member.id}"
+            )
+        else:
+            print(
+                f"ИСКЛЮЧЕНИЕ НЕ НАЙДЕНО НА СЕРВЕРЕ | "
+                f"ID: {user_id}"
+            )
+
+    print("================================")
+    print("")
+
+    print("Начинаю бан участников...")
 
     members = list(guild.members)
 
-    print(f"Найдено участников: {len(members)}")
-
     for member in members:
 
-        # Владельца сервера забанить нельзя
-        if member.id == guild.owner_id:
-            print(f"[SKIP OWNER] {member}")
+        # ==================================
+        # ПРОВЕРКА ИСКЛЮЧЕНИЯ
+        # ==================================
+
+        if member.id in EXCLUDED_USER_IDS:
+            print(
+                f">>> ПРОПУСКАЮ ИСКЛЮЧЁННОГО: "
+                f"{member} | ID: {member.id}"
+            )
             continue
 
-        # Discord запрещает банить участника,
-        # если его высшая роль выше/равна роли бота
-        if member.top_role >= guild.me.top_role:
-            print(f"[SKIP ROLE] {member}")
+        # ==================================
+        # ВЛАДЕЛЕЦ СЕРВЕРА
+        # ==================================
+
+        if member == guild.owner:
+            print(
+                f"ПРОПУСК ВЛАДЕЛЬЦА: "
+                f"{member}"
+            )
             continue
+
+        # ==================================
+        # ПРОВЕРКА ИЕРАРХИИ
+        # ==================================
+
+        if member.top_role >= guild.me.top_role:
+            print(
+                f"ПРОПУСК ИЗ-ЗА ИЕРАРХИИ: "
+                f"{member}"
+            )
+            continue
+
+        # ==================================
+        # БАН
+        # ==================================
 
         try:
+
             await member.ban(
                 reason="Automated server cleanup",
                 delete_message_seconds=0
             )
 
             print(
-                f"[BAN] {member} | ID: {member.id}"
+                f"ЗАБАНЕН: "
+                f"{member} | ID: {member.id}"
             )
 
-            await asyncio.sleep(DELAY)
-
-        except discord.Forbidden:
-            print(f"[FORBIDDEN] {member}")
-
-        except discord.HTTPException as e:
-            print(f"[HTTP ERROR] {member}: {e}")
-
         except Exception as e:
-            print(f"[ERROR] {member}: {e}")
 
-    print("====================================")
-    print()
+            print(
+                f"ОШИБКА БАНА {member}: "
+                f"{e}"
+            )
+
+        await asyncio.sleep(DELAY)
 
 
-# =========================================================
-# УДАЛЕНИЕ ВСЕХ РОЛЕЙ
-# =========================================================
+# ==========================================
+# УДАЛЕНИЕ РОЛЕЙ
+# ==========================================
 
 async def delete_all_roles(guild):
 
-    print("========== УДАЛЕНИЕ РОЛЕЙ ==========")
+    print("")
+    print("Начинаю удаление ролей...")
 
-    roles = list(guild.roles)
+    for role in list(guild.roles):
 
-    print(f"Всего ролей: {len(roles)}")
-
-    for role in roles:
-
-        # @everyone удалить невозможно
+        # @everyone удалить нельзя
         if role.is_default():
-            print("[SKIP] @everyone")
             continue
 
-        # Роль бота и роли выше него удалить нельзя
+        # Роль выше/равна роли бота
         if role >= guild.me.top_role:
             print(
-                f"[SKIP] {role.name} "
-                "(роль выше/равна боту)"
+                f"ПРОПУСК РОЛИ: "
+                f"{role.name}"
             )
             continue
 
         try:
 
-            name = role.name
+            role_name = role.name
 
             await role.delete(
                 reason="Automated server cleanup"
             )
 
-            print(f"[DELETE ROLE] {name}")
-
-            await asyncio.sleep(DELAY)
-
-        except discord.Forbidden:
-            print(f"[FORBIDDEN] {role.name}")
-
-        except discord.HTTPException as e:
-            print(f"[HTTP ERROR] {role.name}: {e}")
+            print(
+                f"РОЛЬ УДАЛЕНА: "
+                f"{role_name}"
+            )
 
         except Exception as e:
-            print(f"[ERROR] {role.name}: {e}")
 
-    print("====================================")
-    print()
+            print(
+                f"ОШИБКА УДАЛЕНИЯ РОЛИ "
+                f"{role.name}: {e}"
+            )
+
+        await asyncio.sleep(DELAY)
 
 
-# =========================================================
-# УДАЛЕНИЕ ВСЕХ КАНАЛОВ
-# =========================================================
+# ==========================================
+# УДАЛЕНИЕ КАНАЛОВ
+# ==========================================
 
 async def delete_all_channels(guild):
 
-    print("========== УДАЛЕНИЕ КАНАЛОВ ==========")
+    print("")
+    print("Начинаю удаление каналов...")
 
-    channels = list(guild.channels)
-
-    print(f"Всего каналов: {len(channels)}")
-
-    for channel in channels:
+    for channel in list(guild.channels):
 
         try:
 
-            name = channel.name
+            channel_name = channel.name
 
             await channel.delete(
                 reason="Automated server cleanup"
             )
 
-            print(f"[DELETE CHANNEL] #{name}")
-
-            await asyncio.sleep(DELAY)
-
-        except discord.Forbidden:
-            print(f"[FORBIDDEN] #{channel.name}")
-
-        except discord.HTTPException as e:
-            print(f"[HTTP ERROR] #{channel.name}: {e}")
+            print(
+                f"КАНАЛ УДАЛЕН: "
+                f"{channel_name}"
+            )
 
         except Exception as e:
-            print(f"[ERROR] #{channel.name}: {e}")
 
-    print("=======================================")
-    print()
+            print(
+                f"ОШИБКА УДАЛЕНИЯ КАНАЛА "
+                f"{channel.name}: {e}"
+            )
+
+        await asyncio.sleep(DELAY)
 
 
-# =========================================================
-# СОЗДАНИЕ НОВОГО КАНАЛА
-# =========================================================
+# ==========================================
+# СОЗДАНИЕ КАНАЛА
+# ==========================================
 
 async def create_channel(guild):
 
+    print("")
     print("Создаю новый канал...")
 
     try:
 
         channel = await guild.create_text_channel(
             NEW_CHANNEL_NAME,
-            reason="Automated server setup"
+            reason="Automated server cleanup"
         )
 
-        print(f"[CREATED] #{channel.name}")
+        print(
+            f"КАНАЛ СОЗДАН: "
+            f"{channel.name}"
+        )
 
         return channel
 
-    except discord.Forbidden:
-        print("Нет права Manage Channels.")
+    except Exception as e:
 
-    except discord.HTTPException as e:
-        print(f"[HTTP ERROR] {e}")
+        print(
+            f"ОШИБКА СОЗДАНИЯ КАНАЛА: "
+            f"{e}"
+        )
 
-    return None
+        return None
 
 
-# =========================================================
+# ==========================================
 # ОТПРАВКА GIF
-# =========================================================
+# ==========================================
 
 async def send_gif(channel):
 
-    print("Отправляю GIF...")
+    if channel is None:
+        return
 
     try:
 
         await channel.send(GIF_URL)
 
-        print("[GIF] GIF отправлена.")
+        print("GIF ОТПРАВЛЕН")
 
-    except discord.HTTPException as e:
+    except Exception as e:
 
-        print(f"[GIF ERROR] {e}")
+        print(
+            f"ОШИБКА ОТПРАВКИ GIF: "
+            f"{e}"
+        )
 
 
-# =========================================================
+# ==========================================
 # ЗАПУСК
-# =========================================================
+# ==========================================
 
 @client.event
 async def on_ready():
 
-    print()
-    print("====================================")
-    print(f"Бот запущен: {client.user}")
-    print("====================================")
+    print("")
+    print("======================================")
+    print("БОТ ЗАПУЩЕН")
+    print(f"Аккаунт: {client.user}")
+    print("======================================")
 
     guild = client.get_guild(GUILD_ID)
 
     if guild is None:
 
-        print("Сервер не найден.")
+        print(
+            f"СЕРВЕР НЕ НАЙДЕН: {GUILD_ID}"
+        )
+
         await client.close()
         return
 
-    print(f"Сервер: {guild.name}")
-    print(f"Участников: {guild.member_count}")
-    print()
+    print(
+        f"Сервер: {guild.name}"
+    )
 
-    permissions = guild.me.guild_permissions
+    print(
+        f"Server ID: {guild.id}"
+    )
 
-    print("============= ПРАВА =============")
-    print(f"Administrator:    {permissions.administrator}")
-    print(f"Ban Members:      {permissions.ban_members}")
-    print(f"Manage Roles:     {permissions.manage_roles}")
-    print(f"Manage Channels:  {permissions.manage_channels}")
-    print("=================================")
-    print()
+    # ======================================
+    # ПРАВА БОТА
+    # ======================================
 
-    # =====================================================
-    # 1. БАНИМ ВСЕХ
-    # =====================================================
+    me = guild.me
+
+    print("")
+    print("========== ПРАВА БОТА ==========")
+
+    print(
+        f"Administrator: "
+        f"{me.guild_permissions.administrator}"
+    )
+
+    print(
+        f"Ban Members: "
+        f"{me.guild_permissions.ban_members}"
+    )
+
+    print(
+        f"Manage Roles: "
+        f"{me.guild_permissions.manage_roles}"
+    )
+
+    print(
+        f"Manage Channels: "
+        f"{me.guild_permissions.manage_channels}"
+    )
+
+    print(
+        f"Роль бота: "
+        f"{me.top_role.name}"
+    )
+
+    print("================================")
+    print("")
+
+    # ======================================
+    # ПОКАЗЫВАЕМ ИСКЛЮЧЕНИЯ
+    # ======================================
+
+    print("========== EXCLUDED USERS ==========")
+
+    for user_id in EXCLUDED_USER_IDS:
+
+        member = guild.get_member(user_id)
+
+        if member:
+
+            print(
+                f"ИСКЛЮЧЁН: "
+                f"{member} | "
+                f"ID: {member.id}"
+            )
+
+        else:
+
+            print(
+                f"НЕ НАЙДЕН: "
+                f"ID {user_id}"
+            )
+
+    print("====================================")
+    print("")
+
+    # ======================================
+    # 1. БАН
+    # ======================================
 
     await ban_everyone(guild)
 
-    # =====================================================
-    # 2. УДАЛЯЕМ ВСЕ РОЛИ
-    # =====================================================
+    # ======================================
+    # 2. УДАЛЕНИЕ РОЛЕЙ
+    # ======================================
 
     await delete_all_roles(guild)
 
-    # =====================================================
-    # 3. УДАЛЯЕМ ВСЕ КАНАЛЫ
-    # =====================================================
+    # ======================================
+    # 3. УДАЛЕНИЕ КАНАЛОВ
+    # ======================================
 
     await delete_all_channels(guild)
 
-    # =====================================================
-    # 4. СОЗДАЁМ НОВЫЙ КАНАЛ
-    # =====================================================
+    # ======================================
+    # 4. СОЗДАНИЕ КАНАЛА
+    # ======================================
 
-    channel = await create_channel(guild)
+    new_channel = await create_channel(guild)
 
-    if channel is not None:
+    # ======================================
+    # 5. GIF
+    # ======================================
 
-        # =================================================
-        # 5. ОТПРАВЛЯЕМ GIF
-        # =================================================
+    await send_gif(new_channel)
 
-        await send_gif(channel)
-
-    print()
-    print("====================================")
+    print("")
+    print("======================================")
     print("ОПЕРАЦИЯ ЗАВЕРШЕНА")
-    print("====================================")
+    print("======================================")
 
     await client.close()
 
 
-# =========================================================
-# START
-# =========================================================
+# ==========================================
+# ЗАПУСК CLIENT
+# ==========================================
 
-client.run(TOKEN)
+if not TOKEN:
+
+    print(
+        "ОШИБКА: DISCORD_TOKEN не найден!"
+    )
+
+else:
+
+    client.run(TOKEN)
