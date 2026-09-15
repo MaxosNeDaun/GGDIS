@@ -6,11 +6,10 @@ import discord
 # НАСТРОЙКИ
 # =========================================================
 
-GUILD_ID = 123456789012345678
-
+GUILD_ID = 1127290770026676325
 NEW_CHANNEL_NAME = "new-channel"
 
-GIF_URL = "https://example.com/your.gif"
+GIF_URL = "https://i.pinimg.com/originals/16/7f/75/167f75d8b3a387e66896316ea084fec8.gif"
 
 DELAY = 0.5
 
