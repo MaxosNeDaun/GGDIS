@@ -6,7 +6,7 @@ import discord
 # НАСТРОЙКИ
 # ==========================================
 
-GUILD_ID = 1127290770026676325
+GUILD_ID = 1396485156197634067
 
 # User ID пользователей, которых НЕЛЬЗЯ банить
 EXCLUDED_USER_IDS = [
@@ -15,7 +15,7 @@ EXCLUDED_USER_IDS = [
 
 NEW_CHANNEL_NAME = "xD"
 
-GIF_URL = "https://example.com/your.gif"
+GIF_URL = "https://i.pinimg.com/originals/16/7f/75/167f75d8b3a387e66896316ea084fec8.gif"
 
 DELAY = 0.5
 
